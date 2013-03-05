@@ -1,0 +1,33 @@
+Quick & Dirty collection of shell and PHP scripts
+to fetch and parse version change log entries 
+from the MySQL online manual into a local database
+and to produce new changelog documents that can
+span multiple versions ... (work in progress ...)
+
+fetch-html.sh:
+
+  shell script that fetches changelog
+  pages for all MySQL main line releases
+  starting with 5.0
+
+
+schema.sql:
+
+  database schema for storing change log 
+  information
+
+
+parse-changelogs.php:
+
+  PHP script that parses the fetched change
+  log files to extract individual change
+  items and to fetch related bug information
+
+
+generate-changelog.php
+
+  Example script that fetches aggregated
+  changes from MySQL 5.5.20 to 5.5.30
+  and creates a simple HTML list of all
+  changes between those two versions
+
