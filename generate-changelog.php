@@ -1,6 +1,8 @@
 #! /usr/bin/php
 <?php
 
+include "config.php";
+
 function get_one_value($query)
 {
   $result = mysql_query($query) or die(mysql_error());
@@ -14,8 +16,9 @@ function get_one_value($query)
   return false;
 }
 
-mysql_connect("127.0.0.1", "root", "");
-mysql_select_db("test") or die(mysql_error());
+mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD);
+mysql_select_db(MYSQL_DB) or die(mysql_error());;
+
 mysql_query("SET group_concat_max_len = 10000") or die(mysql_error());
 
 
