@@ -8,7 +8,7 @@ fetch-html.sh:
 
   shell script that fetches changelog
   pages for all MySQL main line releases
-  starting with 5.0
+  starting with 3.23 up to 5.7
 
 
 schema.sql:
