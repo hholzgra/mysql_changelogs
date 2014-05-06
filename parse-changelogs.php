@@ -31,6 +31,10 @@ function get_bug_dom($id)
 {
   $cacheFile = "bug_html/bug_$id.html";
 
+  if (!file_exists("bug_html")) {
+    mkdir("bug_html");
+  }
+
   if (!file_exists($cacheFile)) {
     copy("http://bugs.mysql.com/$id", $cacheFile);
   }
