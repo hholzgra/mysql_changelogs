@@ -1,6 +1,8 @@
 #! /usr/bin/php
 <?php
 
+include "config.php";
+
 function get_one_value($query)
 {
   $result = mysql_query($query) or die(mysql_error());
@@ -19,10 +21,21 @@ function get_dom($file)
   $dom = new DOMDocument;
 
   $dom->preserveWhiteSpace = false;
-  
+
   @$dom->LoadHTMLFile($file);
 
   return $dom;
+}
+
+function get_bug_dom($id) 
+{
+  $cacheFile = "bug_html/bug_$id.html";
+
+  if (!file_exists($cacheFile)) {
+    copy("http://bugs.mysql.com/$id", $cacheFile);
+  }
+
+  return get_dom($cacheFile);
 }
 
 
@@ -93,7 +106,7 @@ function get_release_version($title)
     $matches[0].= $matches[4];
     return $matches;
   }
-  
+ 
   return array("?.?.?", 0, 0, 0, "");
 }
 
@@ -103,8 +116,8 @@ function get_release_version($title)
 
 /* connect to database (TODO: make configurable) */
 
-mysql_connect("127.0.0.1", "root", "");
-mysql_select_db("test") or die(mysql_error());;
+mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD);
+mysql_select_db(MYSQL_DB) or die(mysql_error());;
 
 /* 
    Empty tables for reimport 
@@ -125,10 +138,11 @@ foreach (array("version","entry","entry_bug","bug") as $table) {
 
 $files = glob("html/news*.html");
 usort($files, "version_compare");
+#$files= array_reverse($files);
 
 foreach($files as $file) {
 
-  /* create DOM and Xpath obhects for the page */
+  /* create DOM and Xpath objects for the page */
   $dom = get_dom($file);
   $xpath = new DOMXPath($dom);
 
@@ -164,7 +178,11 @@ foreach($files as $file) {
      item lists have 'type=disc', nested lists have
      'type=circle' ...
   */
-  $query = "//ul[@type='disc']/li[@class='listitem']";
+  if ($major_version >= 5) {
+    $query = "//ul[@type='disc']/li[@class='listitem']";
+  } else {
+    $query = "//ul[@class='itemizedlist']/li[@class='listitem']";
+  }
   $entries = $xpath->query($query);
 
   /* we keep track of the item section we're in ... */
@@ -210,15 +228,15 @@ foreach($files as $file) {
     }
 
     foreach ($bug_numbers as $number) {
-      $system = $number > 1000000 ? "Oracle" : "MySQL";
+      $system = $number > 200000 ? "Oracle" : "MySQL";
       
       $bug_id = get_one_value("SELECT id FROM bug WHERE bug_system='$system' AND bug_number=$number");
 
       if (!$bug_id) {
 	if ($system == 'MySQL') {
-	  $bug_dom = get_dom("http://bugs.mysql.com/$number");
-	  $bug_xpath = new DOMXPath($dom);
-	  $bug_title = mysql_escape_string(get_title($xpath));
+	  $bug_dom = get_bug_dom($number);
+	  $bug_xpath = new DOMXPath($bug_dom);
+	  $bug_title = mysql_escape_string(get_title($bug_xpath));
 
 	  unset($bug_xpath);
 	  unset($bug_dom);	  
