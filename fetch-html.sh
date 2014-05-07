@@ -1,7 +1,7 @@
 #! /bin/bash
 
 VERSIONS="5.0 5.1 5.5 5.6 5.7"
-VERSIONS="3-23 4-0 4-1"
+OLD_VERSIONS="3-23 4-0 4-1"
 
 INDEX_DOC="index.html"
 
