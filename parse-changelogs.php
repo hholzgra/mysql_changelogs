@@ -127,11 +127,11 @@ mysql_select_db(MYSQL_DB) or die(mysql_error());;
    Empty tables for reimport 
 
    Tables need to be installed from schema.sql
-*/
 
 foreach (array("version","entry","entry_bug","bug") as $table) {
   mysql_query("TRUNCATE TABLE $table") or die(mysql_error());
 }
+*/
 
 /* Go over all files in the HTML directory
 
@@ -145,6 +145,7 @@ usort($files, "version_compare");
 #$files= array_reverse($files);
 
 foreach($files as $file) {
+  echo "Checking $file "; flush();
 
   /* create DOM and Xpath objects for the page */
   $dom = get_dom($file);
@@ -156,7 +157,15 @@ foreach($files as $file) {
   $release_state = get_release_state($title);
   list($version_string, $major_version, $minor_version, $patch_version, $extra_version) = get_release_version($title);
 
-  echo "Parsing $version_string "; flush();
+  echo " $version_string "; flush();
+
+
+  if (get_one_value("SELECT COUNT(*) FROM version WHERE name = '$version_string'")) {
+    echo "\n";
+    continue;
+  }
+
+  echo "Parsing "; flush();
 
   /* store version release information */
   $query = "INSERT INTO version 
@@ -185,12 +194,12 @@ foreach($files as $file) {
   if ($major_version >= 5) {
     $query = "//ul[@type='disc']/li[@class='listitem']";
   } else {
-    $query = "//ul[@class='itemizedlist']/li[@class='listitem']";
+    $query = "//div[@class='section']/div[@class='itemizedlist']/ul[@class='itemizedlist']/li[@class='listitem']";
   }
   $entries = $xpath->query($query);
 
   /* we keep track of the item section we're in ... */
-  $section = "none";
+  $section = "misc.";
 
   /* processing all found items */
   foreach ($entries as $entry) {
@@ -202,10 +211,18 @@ foreach($files as $file) {
        paragraph containing the heading like "Bugs Fixed" or
        "Functionality added or changed"
     */
-    if (@$entry->parentNode->parentNode->previousSibling->previousSibling->tagName === "p") {
-      $section = $entry->parentNode->parentNode->previousSibling->previousSibling->textContent;
-      $section = preg_replace("|\s+|", " ", $section);
-      $section = mysql_escape_string($section);
+    if ($major_version >= 5) {
+      if (@$entry->parentNode->parentNode->previousSibling->previousSibling->tagName === "p") {
+	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->textContent;
+	$section = trim(preg_replace("|\s+|", " ", $section));
+	$section = mysql_escape_string($section);
+      }
+    } else {
+      if (@$entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->tagName === "strong") {
+	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->textContent;
+	$section = trim(preg_replace("|\s+|", " ", $section));
+	$section = mysql_escape_string($section);
+      }
     }
 
     /* we are going to store both pure text and HTML markup
@@ -234,7 +251,10 @@ foreach($files as $file) {
     foreach ($bug_numbers as $number) {
       $system = $number > 200000 ? "Oracle" : "MySQL";
       
-      $bug_id = get_one_value("SELECT id FROM bug WHERE bug_system='$system' AND bug_number=$number");
+      $bug_id = get_one_value("SELECT id 
+                                 FROM bug 
+                                WHERE bug_system='$system' 
+                                  AND bug_number=$number");
 
       if (!$bug_id) {
 	if ($system == 'MySQL') {
