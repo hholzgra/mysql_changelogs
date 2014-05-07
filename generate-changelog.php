@@ -41,13 +41,17 @@ $new_version_id = get_one_value("SELECT id FROM version WHERE name='$new_version
 if (!$new_version_id) die("invalid version $new_version");
 
 $query = "SELECT v.name AS version
-               , e.section
+               , s.name AS section
                , GROUP_CONCAT(e.html_text ORDER BY e.id SEPARATOR '\n') AS html
             FROM version AS v
             JOIN entry   AS e
               ON v.id = e.version_id
-           WHERE v.id BETWEEN $old_version_id AND $new_version_id
-        GROUP BY e.section
+            JOIN entry_section AS e_s
+              ON e_s.entry_id = e.id
+            JOIN section AS s
+              ON e_s.section_id = s.id
+           WHERE v.id BETWEEN $old_version_id +1 AND $new_version_id
+        GROUP BY s.name
                , v.major, v.minor, v.patch, v.extra
                , v.name
           ";

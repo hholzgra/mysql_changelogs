@@ -18,7 +18,7 @@ function get_one_value($query)
 
 function get_dom($file)
 {
-  $dom = new DOMDocument;
+  $dom = new DOMDocument("1.0", "utf8");
 
   $dom->preserveWhiteSpace = false;
 
@@ -115,23 +115,56 @@ function get_release_version($title)
 }
 
 
+function section_lookup($name)
+{
+  $id = get_one_value("SELECT id FROM section WHERE name ='".mysql_escape_string($name)."'");
+
+  if (!$id) {
+    mysql_query("INSERT INTO section SET name = '".mysql_escape_string($name)."'");
+    $id = mysql_insert_id();
+  }
+
+  return $id;
+}
+
+function subsections_lookup($names)
+{
+  $ids = array();
+
+  foreach(split(";", $names) as $name) {
+    $name = trim($name);
+      
+    $id = get_one_value("SELECT id FROM subsection WHERE name ='".mysql_escape_string($name)."'");
+
+    if (!$id) {
+      mysql_query("INSERT INTO subsection SET name = '".mysql_escape_string($name)."'");
+      $id = mysql_insert_id();
+    }
+
+    $ids[] = $id;
+  }
+
+  return $ids;
+}
+
 /* main code starts here */
 
 
 /* connect to database (TODO: make configurable) */
 
 mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD);
-mysql_select_db(MYSQL_DB) or die(mysql_error());;
+mysql_select_db(MYSQL_DB) or die(mysql_error());
+mysql_query("SET NAMES UTF8");
 
 /* 
    Empty tables for reimport 
 
    Tables need to be installed from schema.sql
-
-foreach (array("version","entry","entry_bug","bug") as $table) {
+*/
+			  
+foreach (array("version","entry","entry_bug","bug","section","subsection","entry_section","entry_subsection") as $table) {
   mysql_query("TRUNCATE TABLE $table") or die(mysql_error());
 }
-*/
 
 /* Go over all files in the HTML directory
 
@@ -199,7 +232,7 @@ foreach($files as $file) {
   $entries = $xpath->query($query);
 
   /* we keep track of the item section we're in ... */
-  $section = "misc.";
+  $section = "";
 
   /* processing all found items */
   foreach ($entries as $entry) {
@@ -215,30 +248,51 @@ foreach($files as $file) {
       if (@$entry->parentNode->parentNode->previousSibling->previousSibling->tagName === "p") {
 	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->textContent;
 	$section = trim(preg_replace("|\s+|", " ", $section));
-	$section = mysql_escape_string($section);
+	$section_id = section_lookup($section);
       }
     } else {
       if (@$entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->tagName === "strong") {
 	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->textContent;
 	$section = trim(preg_replace("|\s+|", " ", $section));
-	$section = mysql_escape_string($section);
+	$section_id = section_lookup($section);
       }
     }
 
     /* we are going to store both pure text and HTML markup
        version of the list item */
+
     $plain_text = mysql_escape_string($entry->textContent);
     $html_text = mysql_escape_string($entry->C14N());
+
+    /* check for subsection at start of text */
+    if (@$entry->firstChild->nextSibling->firstChild->firstChild->tagName == "strong") {
+      $subsection = trim(preg_replace("|\s+|", " ", $entry->firstChild->nextSibling->firstChild->firstChild->textContent));
+      if (substr($subsection, -1) != ':') { 
+	$subsection = "";
+      } else {
+	$subsection = substr($subsection, 0, -1);
+      }
+    } else {
+      $subsection = "";
+    }
+
+    $subsection_ids = subsections_lookup($subsection);
+
 
     /* store changelog entry */
     $query = "INSERT INTO entry
                  SET version_id = $version_id
                    , plain_text = '$plain_text'
                    , html_text = '$html_text'
-                   , section = '$section'
              ";    
     mysql_query($query) or die(mysql_error());
     $entry_id = mysql_insert_id();
+
+    mysql_query("INSERT INTO entry_section SET entry_id=$entry_id, section_id=$section_id");
+
+    foreach($subsection_ids as $subsection_id) {
+      mysql_query("INSERT INTO entry_subsection SET entry_id=$entry_id, subsection_id=$subsection_id");      
+    }
 
     /* extract bug references */
     preg_match_all('|bug\s*#\s*(\d+)|i', $plain_text, $matches, PREG_SET_ORDER);
