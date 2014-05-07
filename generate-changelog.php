@@ -17,9 +17,9 @@ function get_one_value($query)
 }
 
 mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD);
-mysql_select_db(MYSQL_DB) or die(mysql_error());;
+mysql_select_db(MYSQL_DB) or die(mysql_error());
 
-mysql_query("SET group_concat_max_len = 10000") or die(mysql_error());
+mysql_query("SET group_concat_max_len = 100000") or die(mysql_error());
 
 
 $old_version = "5.5.20";
