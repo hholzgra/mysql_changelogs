@@ -11,7 +11,7 @@ CREATE TABLE version (
   product VARCHAR(100), -- normalize?
   state VARCHAR(100),
   PRIMARY KEY(id)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARSET=utf8;
 
 
 
@@ -20,11 +20,42 @@ DROP TABLE IF EXISTS entry;
 CREATE TABLE entry (
   id INT NOT NULL AUTO_INCREMENT,
   version_id INT,
-  section TEXT,
   plain_text TEXT,
   html_text TEXT,
   PRIMARY KEY(id)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARSET=utf8;
+
+DROP TABLE IF EXISTS section;
+
+CREATE TABLE section (
+  id INT NOT NULL AUTO_INCREMENT,
+  name TEXT,
+  PRIMARY KEY(id)
+) ENGINE=MyISAM CHARSET=utf8;
+
+DROP TABLE IF EXISTS entry_section;
+
+CREATE TABLE entry_section (
+  entry_id   INT NOT NULL,
+  section_id INT NOT NULL,
+  PRIMARY KEY (entry_id, section_id)
+) ENGINE=MyISAM CHARSET=utf8;
+
+DROP TABLE IF EXISTS subsection;
+
+CREATE TABLE subsection (
+  id INT NOT NULL AUTO_INCREMENT,
+  name TEXT,
+  PRIMARY KEY(id)
+) ENGINE=MyISAM CHARSET=utf8;
+
+DROP TABLE IF EXISTS entry_subsection;
+
+CREATE TABLE entry_subsection (
+  entry_id      INT NOT NULL,
+  subsection_id INT NOT NULL,
+  PRIMARY KEY (entry_id, subsection_id)
+) ENGINE=MyISAM CHARSET=utf8;
 
 
 DROP TABLE IF EXISTS bug;
@@ -35,7 +66,7 @@ CREATE TABLE bug (
   bug_number BIGINT,
   synopsis TEXT,
   PRIMARY KEY(id)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARSET=utf8;
 
 
 DROP TABLE IF EXISTS entry_bug;
@@ -44,5 +75,5 @@ CREATE TABLE entry_bug (
   entry_id INT,
   bug_id INT,
   PRIMARY KEY(entry_id, bug_id)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARSET=utf8;
 
