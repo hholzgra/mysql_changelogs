@@ -1,3 +1,7 @@
+DROP DATABASE IF EXISTS changelog;
+CREATE DATABASE changelog;
+USE changelog;
+
 DROP TABLE IF EXISTS version;
 
 CREATE TABLE version (

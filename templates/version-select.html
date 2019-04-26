@@ -1,0 +1,17 @@
+{% set prev = null %}
+
+<select name="{{ name }}">
+  {% for option in options %}
+    {% if option.series != prev %}
+      {% if prev != null %}
+      </optgroup>
+      {% endif %}
+      <optgroup label="{{ option.series }}">
+    {% endif %}
+    {% set prev = option.series  %}
+  
+    <option value='{{ option.id }}' {{ ( option.name == selected ) ? 'selected="selected"' : '' }}>{{ option.name }}</option>
+  
+  {% endfor %}
+      </optgroup>
+</select>

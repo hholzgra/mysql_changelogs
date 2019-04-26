@@ -1,59 +1,85 @@
 #! /usr/bin/php
 <?php
 
+$exitcount = 0;
+
 include "config.php";
 
-function get_one_value($query)
-{
-  $result = mysql_query($query) or die(mysql_error());
-  $row = mysql_fetch_row($result);
-  mysql_free_result($result);
-  
-  if (is_array($row) && isset($row[0])) {
-    return $row[0];
-  }
+define("BUG_CACHE", "cache/bug-html");
+define("MANUAL_CACHE", "cache/manual-html");
 
-  return false;
+function get_one_value($db, $query)
+{
+    $result = $db->query($query) or die($db->error);
+    $row = $result->fetch_array();
+    $result->close();
+
+    if (is_array($row) && isset($row[0])) {
+        return $row[0];
+    }
+
+    return false;
 }
 
 function get_dom($file)
 {
-  $dom = new DOMDocument("1.0", "utf8");
+    $dom = new DOMDocument("1.0", "utf8");
 
-  $dom->preserveWhiteSpace = false;
+    $dom->preserveWhiteSpace = false;
 
-  @$dom->LoadHTMLFile($file);
+    @$dom->LoadHTMLFile($file);
 
-  return $dom;
+    return $dom;
 }
 
 function get_bug_dom($id) 
 {
-  $cacheFile = "bug_html/bug_$id.html";
+    $cacheFile = BUG_CACHE."/bug_$id.html";
 
-  if (!file_exists("bug_html")) {
-    mkdir("bug_html");
-  }
+    if (!file_exists($cacheFile)) {
+        copy("http://bugs.mysql.com/$id", $cacheFile);
+    }
 
-  if (!file_exists($cacheFile)) {
-    copy("http://bugs.mysql.com/$id", $cacheFile);
-  }
-
-  return get_dom($cacheFile);
+    return get_dom($cacheFile);
 }
 
+function DOMinnerText(DOMNode $element) 
+{ 
+    $innerText = ""; 
+    $children  = $element->childNodes;
+
+    foreach ($children as $child) 
+    { 
+        $innerText .= $child->textContent;
+    }
+    
+    return $innerText; 
+} 
+
+function DOMinnerHTML(DOMNode $element) 
+{ 
+    $innerHTML = ""; 
+    $children  = $element->childNodes;
+
+    foreach ($children as $child) 
+    { 
+        $innerHTML .= $child->C14N();
+    }
+
+    return $innerHTML; 
+} 
 
 /* Get page <title> text, version and release info is in there */
 
 function get_title($xpath)
 {
-  $entries = $xpath->query("//title");
+    $entries = $xpath->query("//title");
 
-  if ($entries->length == 0) {
-    return "";
-  } 
+    if ($entries->length == 0) {
+        return "";
+    } 
 
-  return $entries->item(0)->textContent;
+    return $entries->item(0)->textContent;
 }
 
 /* Extract release date from page title,
@@ -63,21 +89,21 @@ function get_title($xpath)
 
 function get_release_date($title)
 {
-  $regex = '|\((\d{4}-\d{2}-\d{2})|';
+    $regex = '|\((\d{4}-\d{2}-\d{2})|';
 
-  if (preg_match($regex, $title, $matches)) {
-    return $matches[1];
-  }
+    if (preg_match($regex, $title, $matches)) {
+        return $matches[1];
+    }
 
-  if (strstr($title, "Not released")) {
-    return "Not released";
-  }
+    if (strstr($title, "Not released")) {
+        return "Not released";
+    }
 
-  if (strstr($title, "Not yet released")) {
-    return "Not yet released";
-  }
+    if (strstr($title, "Not yet released")) {
+        return "Not yet released";
+    }
 
-  return "???";
+    return "???";
 }
 
 /* The first release of a new release state
@@ -88,13 +114,13 @@ function get_release_date($title)
 
 function get_release_state($title)
 {
-  $regex = '|\(\d{4}-\d{2}-\d{2},\s+(.*)\)|';
+    $regex = '|\(\d{4}-\d{2}-\d{2},\s+(.*)\)|';
 
-  if (preg_match($regex, $title, $matches)) {
-    return $matches[1];
-  }
+    if (preg_match($regex, $title, $matches)) {
+        return $matches[1];
+    }
 
-  return "";
+    return "";
 }
 
 
@@ -102,69 +128,93 @@ function get_release_state($title)
 
 function get_release_version($title)
 {
-  $regex = '|(\d+).(\d+).(\d+)(\S*)|';
+    $regex = '|(\d+).(\d+).(\d+)(\S*)|';
 
-  if (preg_match($regex, $title, $matches)) {
-    $matches[0] = "$matches[1].$matches[2].$matches[3]";
-    if (!isset($matches[4])) $matches[4] = "";
-    $matches[0].= $matches[4];
-    return $matches;
-  }
+    if (preg_match($regex, $title, $matches)) {
+        $matches[0] = "$matches[1].$matches[2].$matches[3]";
+        if (!isset($matches[4])) $matches[4] = "";
+        $matches[0].= $matches[4];
+        return $matches;
+    }
  
-  return array("?.?.?", 0, 0, 0, "");
+    return array("?.?.?", 0, 0, 0, "");
 }
 
 
-function section_lookup($name)
+function section_lookup($db, $name)
 {
-  $id = get_one_value("SELECT id FROM section WHERE name ='".mysql_escape_string($name)."'");
-
-  if (!$id) {
-    mysql_query("INSERT INTO section SET name = '".mysql_escape_string($name)."'");
-    $id = mysql_insert_id();
-  }
-
-  return $id;
-}
-
-function subsections_lookup($names)
-{
-  $ids = array();
-
-  foreach(split(";", $names) as $name) {
-    $name = trim($name);
-      
-    $id = get_one_value("SELECT id FROM subsection WHERE name ='".mysql_escape_string($name)."'");
+    $id = get_one_value($db, "SELECT id FROM section WHERE name ='".$db->real_escape_string($name)."'");
 
     if (!$id) {
-      mysql_query("INSERT INTO subsection SET name = '".mysql_escape_string($name)."'");
-      $id = mysql_insert_id();
+        $db->query("INSERT INTO section SET name = '".$db->real_escape_string($name)."'");
+        $id = $db->insert_id;
     }
 
-    $ids[] = $id;
-  }
+    return $id;
+}
 
-  return $ids;
+function subsections_lookup($db, $names)
+{
+    $ids = array();
+
+    foreach(explode(";", $names) as $name) {
+        $name = trim($name);
+        if ($name === "") continue;
+        
+        $id = get_one_value($db, "SELECT id FROM subsection WHERE name ='".$db->escape_string($name)."'");
+
+        if (!$id) {
+            $db->query("INSERT INTO subsection SET name = '".$db->escape_string($name)."'");
+            $id = $db->insert_id;
+        }
+
+        $ids[] = $id;
+    }
+
+    return $ids;
 }
 
 /* main code starts here */
 
-
-/* connect to database (TODO: make configurable) */
-
-mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD);
-mysql_select_db(MYSQL_DB) or die(mysql_error());
-mysql_query("SET NAMES UTF8");
-
-/* 
-   Empty tables for reimport 
-
-   Tables need to be installed from schema.sql
-*/
-			  
-foreach (array("version","entry","entry_bug","bug","section","subsection","entry_section","entry_subsection") as $table) {
-  mysql_query("TRUNCATE TABLE $table") or die(mysql_error());
+if (!file_exists(BUG_CACHE)) {
+    mkdir(BUG_CACHE);
 }
+
+if (!file_exists(BUG_CACHE)) {
+    mkdir(BUG_CACHE);
+}
+
+/* connect to database */
+
+$db = mysqli_init();
+if (!$db) {
+    die('mysqli_init failed');
+}
+
+$db = mysqli_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWD, MYSQL_DB);
+if (!$db) {
+    die('Connect Error (' . mysqli_connect_errno() . ') '
+    . mysqli_connect_error());
+}
+
+$db->query("SET NAMES UTF8");
+
+if ($argc == 2 && $argv[1] == "--replace") {
+    $replace = true;
+}
+
+if ($replace) {
+    /* 
+       Empty tables for reimport 
+
+       Tables need to be installed from schema.sql
+    */
+
+    foreach (array("version","entry","entry_bug","bug","section","subsection","entry_section","entry_subsection") as $table) {
+        $db->query("TRUNCATE TABLE $table") or die($db->error);
+    }
+}
+
 
 /* Go over all files in the HTML directory
 
@@ -173,35 +223,58 @@ foreach (array("version","entry","entry_bug","bug","section","subsection","entry
    that directory beforehand ...
 */
 
-$files = glob("html/news*.html");
+$files = glob(MANUAL_CACHE."/news-*.html");
+
 usort($files, "version_compare");
-#$files= array_reverse($files);
+
+$db->query("BEGIN");
 
 foreach($files as $file) {
-  echo "Checking $file "; flush();
+    parse_release_file($db, $file, $replace);
+}
 
-  /* create DOM and Xpath objects for the page */
-  $dom = get_dom($file);
-  $xpath = new DOMXPath($dom);
-
-  /* extract release information from page title */
-  $title = get_title($xpath);
-  $release_date = get_release_date($title);
-  $release_state = get_release_state($title);
-  list($version_string, $major_version, $minor_version, $patch_version, $extra_version) = get_release_version($title);
-
-  echo " $version_string "; flush();
+$db->query("COMMIT");
 
 
-  if (get_one_value("SELECT COUNT(*) FROM version WHERE name = '$version_string'")) {
-    echo "\n";
-    continue;
-  }
 
-  echo "Parsing "; flush();
 
-  /* store version release information */
-  $query = "INSERT INTO version 
+
+
+
+
+function parse_release_file($db, $file, $replace = false) {
+    echo "Checking $file "; flush();
+
+    /* create DOM and Xpath objects for the page */
+    $dom = get_dom($file);
+    $xpath = new DOMXPath($dom);
+
+    /* extract release information from page title */
+    $title = get_title($xpath);
+    $release_date = get_release_date($title);
+    $release_state = get_release_state($title);
+    list($version_string, $major_version, $minor_version, $patch_version, $extra_version) = get_release_version($title);
+
+    echo " $version_string "; flush();
+
+    $version_id = get_one_value($db, "SELECT id FROM version WHERE name = '$version_string'");
+    
+    if ($version_id)
+    {
+        if ($replace) {
+            echo "(purging ...) "; flush();
+            $db->query("DELETE FROM entry WHERE version_id = $version_id");
+            $db->query("DELETE FROM version WHERE id = $version_id");
+        } else {
+            echo "already in database \n"; flush();
+            return;
+        }
+    }
+
+    echo "Parsing "; flush();
+
+    /* store version release information */
+    $query = "INSERT INTO version 
                SET product = 'MySQL'
                  , name = '$version_string'
                  , major = $major_version
@@ -212,134 +285,138 @@ foreach($files as $file) {
                  , state = '$release_state'
                  ;
            ";
-  mysql_query($query) or die(mysql_error());
+    $db->query($query) or die($db->error);
 
-  /* get auto increment ID of inserted version row */
-  /* to be used as FK reference for entry records later */
-  $version_id = mysql_insert_id();
+    /* get auto increment ID of inserted version row */
+    /* to be used as FK reference for entry records later */
+    $version_id = $db->insert_id;
 
-  /* now we start to operate on the changelog DOM tree */
+    /* now we start to operate on the changelog DOM tree */
  
-  /* we are looking for top level items only, top level
-     item lists have 'type=disc', nested lists have
-     'type=circle' ...
-  */
-  if ($major_version >= 5) {
-    $query = "//ul[@type='disc']/li[@class='listitem']";
-  } else {
-    $query = "//div[@class='section']/div[@class='itemizedlist']/ul[@class='itemizedlist']/li[@class='listitem']";
-  }
-  $entries = $xpath->query($query);
-
-  /* we keep track of the item section we're in ... */
-  $section = "";
-
-  /* processing all found items */
-  foreach ($entries as $entry) {
-    echo "."; flush();
-    
-    /* Check for the section heading ...
-       parent node is the <ul> list section, grandparent is a <div>
-       before that diff is some whitespace, and before that is the 
-       paragraph containing the heading like "Bugs Fixed" or
-       "Functionality added or changed"
+    /* we are looking for top level items only, top level
+       item lists have 'type=disc', nested lists have
+       'type=circle' ...
     */
     if ($major_version >= 5) {
-      if (@$entry->parentNode->parentNode->previousSibling->previousSibling->tagName === "p") {
-	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->textContent;
-	$section = trim(preg_replace("|\s+|", " ", $section));
-	$section_id = section_lookup($section);
-      }
+        $query = "//div[@class='section']/div[@class='simplesect']/div[@class='itemizedlist']/ul[@class='itemizedlist']/li[@class='listitem']";
     } else {
-      if (@$entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->tagName === "strong") {
-	$section = $entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->textContent;
-	$section = trim(preg_replace("|\s+|", " ", $section));
-	$section_id = section_lookup($section);
-      }
+        $query = "//div[@class='section']/div[@class='itemizedlist']/ul[@class='itemizedlist']/li[@class='listitem']";
     }
+    $entries = $xpath->query($query);
 
-    /* we are going to store both pure text and HTML markup
-       version of the list item */
+    /* we keep track of the item section we're in ... */
+    $section = "";
 
-    $plain_text = mysql_escape_string($entry->textContent);
-    $html_text = mysql_escape_string($entry->C14N());
-
-    /* check for subsection at start of text */
-    if (@$entry->firstChild->nextSibling->firstChild->firstChild->tagName == "strong") {
-      $subsection = trim(preg_replace("|\s+|", " ", $entry->firstChild->nextSibling->firstChild->firstChild->textContent));
-      if (substr($subsection, -1) != ':') { 
-	$subsection = "";
-      } else {
-	$subsection = substr($subsection, 0, -1);
-      }
-    } else {
-      $subsection = "";
-    }
-
-    $subsection_ids = subsections_lookup($subsection);
-
-
-    /* store changelog entry */
-    $query = "INSERT INTO entry
-                 SET version_id = $version_id
-                   , plain_text = '$plain_text'
-                   , html_text = '$html_text'
-             ";    
-    mysql_query($query) or die(mysql_error());
-    $entry_id = mysql_insert_id();
-
-    mysql_query("INSERT INTO entry_section SET entry_id=$entry_id, section_id=$section_id");
-
-    foreach($subsection_ids as $subsection_id) {
-      mysql_query("INSERT INTO entry_subsection SET entry_id=$entry_id, subsection_id=$subsection_id");      
-    }
-
-    /* extract bug references */
-    preg_match_all('|bug\s*#\s*(\d+)|i', $plain_text, $matches, PREG_SET_ORDER);
-
-    $bug_numbers = array();
-    foreach ($matches as $match) {
-      $bug_numbers[$match[1]] = $match[1];
-    }
-
-    foreach ($bug_numbers as $number) {
-      $system = $number > 200000 ? "Oracle" : "MySQL";
-      
-      $bug_id = get_one_value("SELECT id 
-                                 FROM bug 
-                                WHERE bug_system='$system' 
-                                  AND bug_number=$number");
-
-      if (!$bug_id) {
-	if ($system == 'MySQL') {
-	  $bug_dom = get_bug_dom($number);
-	  $bug_xpath = new DOMXPath($bug_dom);
-	  $bug_title = mysql_escape_string(get_title($bug_xpath));
-
-	  unset($bug_xpath);
-	  unset($bug_dom);	  
-	}
-
-	$query = "INSERT INTO bug 
-                     SET bug_system = '$system'
-                       , bug_number = $number
-                       , synopsis = '$bug_title'
-                 ";
-	mysql_query($query) or die(mysql_error());
-	$bug_id = mysql_insert_id();
-      }
-
-      $query = "INSERT INTO entry_bug 
-                   SET entry_id = $entry_id
-                     , bug_id = $bug_id
-               ";
-      mysql_query($query) or die(mysql_error());
-    }  
+    /* processing all found items */
+    foreach ($entries as $entry) {
+        echo "."; flush();
     
-  }
-  echo "\n";
+        /* Check for the section heading ...
+           parent node is the <ul> list section, grandparent is a <div>
+           before that diff is some whitespace, and before that is the 
+           paragraph containing the heading like "Bugs Fixed" or
+           "Functionality added or changed"
+        */
+        $section_id = "NULL";
+        if ($major_version >= 5) {
+            $section = @$entry->parentNode->parentNode->parentNode->firstChild->nextSibling->textContent;
+            $section = trim(preg_replace("|\s+|", " ", $section));
+            $section_id = section_lookup($db, $section);
+        } else {
+            if (@$entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->tagName === "strong") {
+                $section = $entry->parentNode->parentNode->previousSibling->previousSibling->firstChild->firstChild->textContent;
+                $section = trim(preg_replace("|\s+|", " ", $section));
+                $section_id = section_lookup($section);
+            }
+        } 
+        
+        /* we are going to store both pure text and HTML markup
+           version of the list item */
 
-  unset($xpath);
-  unset($dom);
+        $plain_text = $db->real_escape_string(DOMinnerText($entry));
+        $html_text = $db->real_escape_string(DOMinnerHTML($entry));
+
+        /* check for subsection at start of text */
+        $result = $xpath->query("./p/span[@class='bold']", $entry);
+        if ($result->length) {
+            $subsections = trim($result[0]->textContent);
+            $subsections = trim(preg_replace('/:$/m', '', $subsections));
+        } else {
+            $subsections = "";
+        }
+
+        $subsection_ids = subsections_lookup($db, $subsections);
+
+        /* store changelog entry */
+        $query = "INSERT INTO entry
+                     SET version_id = $version_id
+                       , plain_text = '$plain_text'
+                       , html_text = '$html_text'
+             ";    
+        $db->query($query) or die($db->error);
+        $entry_id = $db->insert_id;
+
+        $db->query("INSERT INTO entry_section 
+                       SET entry_id=$entry_id
+                         , section_id=$section_id
+                   ");
+
+        foreach($subsection_ids as $subsection_id) {
+            $db->query("INSERT INTO entry_subsection 
+                           SET entry_id=$entry_id
+                             , subsection_id=$subsection_id"
+                       );      
+        }
+
+        /* extract bug references */
+        preg_match_all('|bug\s*#\s*(\d+)|mi', $plain_text, $matches, PREG_SET_ORDER);
+
+        $bug_numbers = array();
+        foreach ($matches as $match) {
+            $bug_numbers[$match[1]] = $match[1];
+        }
+
+        foreach ($bug_numbers as $number) {
+            $system = $number > 200000 ? "Oracle" : "MySQL";
+      
+            $bug_id = get_one_value($db, "SELECT id 
+                                            FROM bug 
+                                           WHERE bug_system='$system' 
+                                             AND bug_number=$number
+                                         ");
+
+            if (!$bug_id) {
+                if ($system == 'MySQL') {
+                    $bug_dom = get_bug_dom($number);
+                    $bug_xpath = new DOMXPath($bug_dom);
+                    $bug_title = $db->real_escape_string(get_title($bug_xpath));
+
+                    unset($bug_xpath);
+                    unset($bug_dom);	  
+                } else {
+                    $bug_title = '';
+                }
+
+                $query = "INSERT INTO bug 
+                             SET bug_system = '$system'
+                               , bug_number = $number
+                               , synopsis = '$bug_title'
+                 ";
+                $db->query($query) or die($db->error);
+                $bug_id = $db->insert_id;
+            }
+
+            $query = "INSERT INTO entry_bug 
+                         SET entry_id = $entry_id
+                           , bug_id = $bug_id
+               ";
+            $db->query($query) or die($db->error);
+        }  
+    
+    }
+    echo "\n";
+
+    unset($xpath);
+    unset($dom);
 }
 

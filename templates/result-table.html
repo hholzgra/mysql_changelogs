@@ -1,0 +1,68 @@
+    <table class='table'>
+      <tr>
+	<th scope='col'>Section</th>
+	<th scope='col'>Topics</th>
+	<th scope='col'>Version</th>
+	<th scope='col'>Change</th>
+      </tr>
+
+      {% set prev = null %}
+      
+      {% set section_class    = false %}
+      {% set topic_class = false %}
+      {% set version_class    = false %}
+
+      {% set section_change = false %}
+      {% set topic_change = false %}
+      {% set version_change = false %}
+
+      {% for item in rows %}
+      
+      {% if prev is null or prev.section != item.section %}
+        {% set section_class = not section_class %}
+        {% set topic_class = not topic_class %}
+        {% set version_class = not version_class %}
+        {% set section_change = true %}
+        {% set topic_change = true %}
+        {% set version_change = true %}
+      {% elseif prev is null or prev.topic != item.topic %}
+        {% set topic_class = not topic_class %}
+        {% set version_class = not version_class %}
+        {% set topic_change = true %}
+        {% set version_change = true %}
+      {% elseif prev is null or prev.version != item.version %}
+        {% set version_class = not version_class %}
+        {% set version_change = true %}
+      {% endif %}
+
+      <tr>
+	<td class="{{ section_class ? 'odd ' : 'even '}}{{ section_change ? 'top_border ': 'side_border ' }}" title="{{item.section}}">
+	  {% if prev is null or prev.section != item.section %}
+	  {% set prev = null %}
+	  {{ item.section }}
+	  {% endif %}
+	</td>
+	<td class="{{ topic_class ? 'odd ' : 'even '}}{{ topic_change ? 'top_border ': 'side_border ' }}" title="{{item.topic}}">
+	  {% if prev is null or prev.topic != item.topic %}
+	  {% set prev = null %}
+	  {{ item.topic }}
+	  {% endif %}
+	</td>
+	<td class="{{ version_class ? 'odd ' : 'even '}}{{ version_change ? 'top_border ': 'side_border ' }}" title="{{item.version}}">
+	  {% if prev is null or prev.version != item.version %}
+	  {% set prev = null %}
+	  {{ item.version }}
+	  {% endif %}
+	</td>
+	<td class='{{ cycle(['even','odd'], loop.index) }}'>
+	  {{ item.html|raw }}
+	</td>
+      </tr>
+      {% set prev = item %}
+
+      {% set section_change = false %}
+      {% set topic_change = false %}
+      {% set version_change = false %}
+
+      {% endfor %}
+    </table>

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-VERSIONS="5.0 5.1 5.5 5.6 5.7"
+VERSIONS="5.0 5.1 5.5 5.6 5.7 8.0"
 OLD_VERSIONS="3-23 4-0 4-1"
 
 INDEX_DOC="index.html"
@@ -8,14 +8,16 @@ INDEX_DOC="index.html"
 INDEX_BASE="http://dev.mysql.com/doc/relnotes/mysql"
 NEWS_BASE="http://dev.mysql.com/doc/relnotes/mysql"
 
-OLD_BASE="http://dev.mysql.com/doc/refman/4.1/en/"
+V50_BASE="http://ftp.nchu.edu.tw/MySQL/doc/refman/5.0/en"
 
-HTML_DIR="./html"
+OLD_BASE="http://ftp.nchu.edu.tw/MySQL/doc/refman/4.1/en"
+
+
+HTML_DIR="./cache/manual-html"
 
 mkdir -p $HTML_DIR
 
 for version in $VERSIONS; do
-
   news_files=`wget -O- -q $INDEX_BASE/$version/en/$INDEX_DOC | grep -o "news-$version-.*\.html" | grep -v "sp" | sort -g | uniq`
 
   for file in $news_files; do
@@ -27,7 +29,7 @@ for version in $VERSIONS; do
 
       echo "fetching $url"
 
-      wget -q -O- $url | tidy -asxml -utf8 2>/dev/null > "$HTML_DIR/$file"
+      wget -q -O- $url | tidy -asxml -utf8 2>/dev/null > "$HTML_DIR/$file" 
     fi
   done
 

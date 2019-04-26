@@ -1,0 +1,9 @@
+<select class="multipleSelect" multiple name="{{ name }}[]" id="{{ name }}">
+  {% for option in options %}
+  <option value='{{ option.id }}' {{ ( option.id in selected ) ? 'selected="selected"' : '' }}>{{ option.name }}</option>
+  {% endfor %}
+</select>
+
+{% for x in selected %}
+<!-- {{ x }} -->
+{% endfor %}

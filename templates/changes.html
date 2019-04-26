@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}MySQL Changes between {{ old_version }} and {{ new_version }}</title>{% endblock %}
+
+{% block extra_style %}
+.odd {background: #ddd}
+.even {background: #dfd}
+
+.top_border { border-top: 1px solid #000 !important; border-bottom: 0px; border-left: 1px solid #000; border-right: 1px solid #000; }
+.side_border { border-top: 0px !important; border-bottom: 0px; border-left: 1px solid #000; border-right: 1px solid #000; }
+
+.fstElement { font-size: 0.8em; }
+
+{% endblock %}
+
+{% block body %}
+    {% if old_version is defined %}
+    <h1>MySQL Changes between {{ old_version }} and {{ new_version }}</h1>
+    {% else %}
+    <h1>MySQL Changes</h1>    
+    {% endif %}
+
+    <form method='POST'>
+      Compare version {{ version1|raw }} with {{ version2|raw }}
+      <input type="submit"/>
+      <br/>
+      Sections: {{ sections|raw }}
+      <br/>
+      Topics: {{ topics|raw }}
+      <br/>
+    </form>
+    
+    {% if rows is defined %}
+    {% include 'result-table.html' %}
+    {% endif %}
+{% endblock %}
+
+{% block extrajs %}
+$('#sections').fastselect({'placeholder': 'Sections'});
+$('#topics').fastselect({'placeholder': 'Topics'});
+{% endblock %}

@@ -1,0 +1,32 @@
+{
+  "name": "mysql_cangelogs",
+  "version": "1.9.0",
+  "description": "MySQL Changelog aggregator",
+  "main": "index.php",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hholzgra/mysql_changelogs.git"
+  },
+  "keywords": [
+    "mysql",
+    "bugs",
+    "feed",
+    "website"
+  ],
+  "author": "Hartmut Holzgraefe <hartmut@mariadb.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hholzgra/mysql_changelogs/issues"
+  },
+  "homepage": "https://github.com/hholzgra/mysql_changelogs#readme",
+  "dependencies": {
+    "bootstrap": "^4.3.1",
+    "fastsearch": "^1.11.1",
+    "fastselect": "^0.7.3",
+    "jquery": "^3.4.0",
+    "popper": "^1.0.1"
+  }
+}
